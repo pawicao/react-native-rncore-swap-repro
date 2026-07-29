@@ -1,81 +1,43 @@
-name: Pre Merge Checks
+name: Reproduce iOS build failure
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - "*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  test-android:
-    runs-on: ubuntu-latest
+  reproduce-ios:
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: insightsengineering/disk-space-reclaimer@v1
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          tools-cache: false
-          android: false
-          dotnet: true
-          haskell: true
-          large-packages: false
-          swap-storage: false
-          docker-images: true
+          node-version: 24
+          cache: yarn
+          cache-dependency-path: ReproducerApp/yarn.lock
 
-      - name: Checkout Repo
-        uses: actions/checkout@v3
-
-      - name: Setup Java
-        uses: actions/setup-java@v3
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
         with:
-          distribution: "zulu"
-          java-version: "17"
+          bundler-cache: true
+          working-directory: ReproducerApp
 
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 22
-
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-
-      - name: Yarn Install
-        run: yarn install
+      - name: Install JavaScript packages
         working-directory: ReproducerApp
+        run: yarn install --frozen-lockfile
 
-      - name: Yarn Build Android Debug
-        run: yarn react-native build-android
-        working-directory: ReproducerApp
-
-      - name: Yarn Build Android Release
-        run: yarn react-native build-android --mode=Release
-        working-directory: ReproducerApp
-
-  test-ios:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
-
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 22
-
-      - name: Setup XCode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: 16.2.0
-
-      - name: Yarn Install
-        run: yarn install
-        working-directory: ReproducerApp
-
-      - name: pod install
-        run: pod install
+      - name: Install CocoaPods packages
         working-directory: ReproducerApp/ios
+        run: bundle exec pod install
 
-      - name: Yarn Build iOS
-        run: yarn react-native build-ios
-        working-directory: ReproducerApp
+      - name: Reproduce the failure
+        run: bash repro-rncore-swap.sh

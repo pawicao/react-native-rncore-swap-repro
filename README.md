@@ -1,79 +1,67 @@
-# react-native-rncore-swap-repro
+# RNCore configuration-swap reproducer
 
-![Build](https://github.com/pawicao/react-native-rncore-swap-repro/workflows/Pre%20Merge%20Checks/badge.svg)
+This repository uses the official React Native reproducer template. It tests
+React Native 0.87.0-rc.3.
 
-This is your new React Native Reproducer project.
+The app adds one local CocoaPod with one Objective-C file. This pod does not
+import React. It does not depend on `React-Core-prebuilt`.
 
-# Reproducer TODO list
+React Native adds this flag to the pod:
 
-- [x] 1. Create a new reproducer project.
-- [ ] 2. Git clone your repository locally.
-- [ ] 3. Edit the project to reproduce the failure you're seeing.
-- [ ] 4. Push your changes, so that Github Actions can run the CI.
-- [ ] 5. Make sure the repository is public and share the link with the issue you reported.
-
-# How to use this Reproducer
-
-This project has been created with `npx @react-native-community/cli init` and is a vanilla React Native app.
-
-> [!IMPORTANT]  
-> Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/set-up-your-environment) so that you have a working environment locally.
-
-## Step 1: Start the Metro Server
-
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
-
-To start Metro, run the following command from the _root_ of your React Native project:
-
-```bash
-# using npm
-npm start
-
-# OR using Yarn
-yarn start
+```text
+-fmodule-map-file=$(PODS_ROOT)/React-Core-prebuilt/Headers/module.modulemap
 ```
 
-## Step 2: Start your Application
+## Install
 
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
+Use Node.js 24.
 
-### For Android
-
-```bash
-# using npm
-npm run android
-
-# OR using Yarn
-yarn android
+```sh
+cd ReproducerApp
+yarn install --frozen-lockfile
+bundle install
+cd ios
+bundle exec pod install
+cd ../..
 ```
 
-### For iOS
+## Reproduce the failure
 
-First, make sure you install dependencies with:
+Run:
 
-```bash
-cd ios && bundle install && bundle exec pod install
+```sh
+bash repro-rncore-swap.sh
 ```
 
-Then you can run the iOS app with:
+The script sets the last RNCore configuration to Debug. It then starts a Release
+build with new DerivedData.
 
-```bash
-# using npm
-npm run ios
+On Xcode 26.3, the build fails when Clang builds the `React` explicit module.
+Clang reports seven non-modular header errors.
 
-# OR using Yarn
-yarn ios
+The script writes the full log to:
+
+```text
+/tmp/rncore-swap-repro-<date-and-time>.log
 ```
 
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
+## Control test
 
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
+Keep RNCore at Release:
 
-## Step 3: Modifying your App
+```sh
+RNCORE_PREVIOUS_CONFIGURATION=Release bash repro-rncore-swap.sh
+```
 
-Now that you have successfully run the app, let's modify it.
+The build passes.
 
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
+## Workaround test
 
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
+Disable only Clang explicit modules:
+
+```sh
+bash repro-rncore-swap.sh CLANG_ENABLE_EXPLICIT_MODULES=NO
+```
+
+The build passes. This test does not set
+`SWIFT_ENABLE_EXPLICIT_MODULES=NO`.

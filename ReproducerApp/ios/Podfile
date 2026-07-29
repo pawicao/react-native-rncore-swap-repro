@@ -17,6 +17,10 @@ end
 target 'ReproducerApp' do
   config = use_native_modules!
 
+  # This pod has no React dependency. React Native still adds its RNCore
+  # header path and sidecar module-map flag to this target.
+  pod 'IndependentPod', :path => './IndependentPod'
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.
